@@ -18,3 +18,12 @@ export async function performGlobalSearch(query: string) {
     }
     return response.json();
 }
+
+export async function fetchMeetingDetails(id: string) {
+    const response = await fetch(`${API_BASE_URL}/meetings/${id}/details`);
+    if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error("Failed to fetch meeting details");
+    }
+    return response.json();
+}
