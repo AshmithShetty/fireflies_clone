@@ -5,15 +5,17 @@ A functional clone of the Fireflies.ai meeting-assistant web application. This p
 ## Project Overview & Features
 This project replicates the core post-meeting workflows and design aesthetics of Fireflies.ai.
 - **Meetings Library / Dashboard**: Filterable, sortable list of past meetings matching the Fireflies UI.
-- **Interactive Transcript Detail View**: Split-screen view featuring a media player, interactive transcript with speaker timestamps, and AI-generated summary panels.
-- **Meeting Management (CRUD)**: Create, edit, and delete meetings, along with dynamic action item checklists.
+- **Interactive Transcript Detail View**: Split-screen view featuring a custom-built media player, interactive transcript with speaker timestamps, and AI-generated summary panels.
+- **Custom Media Player**: A fully custom React video player that ingeniously mocks long-form meeting durations (e.g., 15 minutes) while looping a lightweight local 10s video, supporting seamless transcript-to-video timestamp seeking.
+- **Dynamic AI Context**: Action items, key topics, and AI summaries are dynamically generated based on the specific meeting title (e.g., Engineering, Marketing, Design).
+- **Meeting Management (CRUD)**: Create, edit, and delete meetings, along with dynamic action item checklists and custom tag creation.
 - **1:1 UI Overhaul**: Sidebar navigation, mocked placeholder pages for settings, AI skills, voice agents, and AskFred integrations matching the modern Fireflies dashboard perfectly.
 
 ## Tech Stack Used
 - **Frontend**: Next.js (App Router, TypeScript), Tailwind CSS, Shadcn UI (Radix Primitives), Zustand (State Management), Lucide React (Icons).
 - **Backend**: FastAPI (Python), Uvicorn, Pydantic, SQLAlchemy ORM.
 - **Database**: SQLite with FTS5 for native full-text global search.
-- **AI Integration**: Groq API integration using Llama 3 for the "Ask AI" / AskFred chat feature.
+- **AI Integration**: Groq API integration using Llama 3 for the "Ask AI" / AskFred chat feature (with context-aware transcript injection).
 
 ## Architecture Overview
 The application follows a modern decoupled architecture. The frontend (Next.js) handles UI rendering, client-side routing, and state management, communicating via RESTful API calls to the Python backend. The backend (FastAPI) manages business logic, SQLite database interactions via SQLAlchemy, and proxies external requests to the Groq LLM API to generate AI summaries and handle conversational AI queries over transcripts.
@@ -58,8 +60,9 @@ The FastAPI backend exposes the following primary endpoints:
    GROQ_API_KEY=your_api_key_here
    GROQ_MODEL=llama-3.1-8b-instant
    ```
-5. Seed the database with sample data: `python seed.py`
-6. Run the server: `uvicorn main:app --reload` (Runs on `http://localhost:8000`)
+5. *Note: Ensure you have placed a small `video.mp4` file inside `frontend/public/` to serve as the visual loop for the custom media player!*
+6. Seed the database with sample data: `python seed.py`
+7. Run the server: `uvicorn main:app --reload` (Runs on `http://localhost:8000`)
 
 ### Frontend Setup
 1. Navigate to the frontend directory: `cd frontend`
