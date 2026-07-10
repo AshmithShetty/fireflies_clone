@@ -37,17 +37,16 @@ export function GlobalSearch() {
     return (
         <div className="relative w-full max-w-md">
             <Popover open={isOpen && results.length > 0} onOpenChange={setIsOpen}>
-                <PopoverTrigger asChild>
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            type="search"
-                            placeholder="Search meetings, transcripts, or topics..."
-                            className="pl-8 w-full bg-background"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                        />
-                    </div>
+                <PopoverTrigger render={<div className="relative" />} nativeButton={false}>
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        placeholder="Search meetings, transcripts, or topics..."
+                        className="w-full pl-9 bg-muted/40 border-muted-foreground/20 focus-visible:ring-primary/30"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onFocus={() => setIsOpen(true)}
+                    />
                 </PopoverTrigger>
                 <PopoverContent className="w-full max-w-md p-0" align="start">
                     <ScrollArea className="h-72">

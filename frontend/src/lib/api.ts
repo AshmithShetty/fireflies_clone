@@ -27,3 +27,93 @@ export async function fetchMeetingDetails(id: string) {
     }
     return response.json();
 }
+
+export async function toggleActionItem(itemId: string, isCompleted: boolean) {
+    const response = await fetch(`${API_BASE_URL}/action-items/${itemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_completed: isCompleted }),
+    });
+    if (!response.ok) throw new Error("Failed to update action item");
+    return response.json();
+}
+
+export async function askMeetingQuestion(meetingId: string, question: string) {
+    const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+    });
+    if (!response.ok) throw new Error("Failed to ask question");
+    return response.json();
+}
+
+export async function addComment(segmentId: string, text: string) {
+    const response = await fetch(`${API_BASE_URL}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ segment_id: segmentId, text }),
+    });
+    if (!response.ok) throw new Error("Failed to add comment");
+    return response.json();
+}
+
+export async function fetchUsers() {
+    const response = await fetch(`${API_BASE_URL}/users`);
+    if (!response.ok) throw new Error("Failed to fetch users");
+    return response.json();
+}
+
+export async function fetchTags() {
+    const response = await fetch(`${API_BASE_URL}/tags`);
+    if (!response.ok) throw new Error("Failed to fetch tags");
+    return response.json();
+}
+
+export async function createMeeting(payload: any) {
+    const response = await fetch(`${API_BASE_URL}/meetings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error("Failed to create meeting");
+    return response.json();
+}
+
+export async function updateMeetingMetadata(id: string, payload: any) {
+    const response = await fetch(`${API_BASE_URL}/meetings/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error("Failed to update meeting");
+    return response.json();
+}
+
+export async function deleteMeeting(id: string) {
+    const response = await fetch(`${API_BASE_URL}/meetings/${id}`, {
+        method: "DELETE",
+    });
+    if (!response.ok) throw new Error("Failed to delete meeting");
+    return true;
+}
+
+export async function createActionItem(payload: any) {
+    const response = await fetch(`${API_BASE_URL}/action-items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error("Failed to create action item");
+    return response.json();
+}
+
+export async function updateActionItem(itemId: string, payload: any) {
+    const response = await fetch(`${API_BASE_URL}/action-items/${itemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error("Failed to update action item");
+    return response.json();
+}
