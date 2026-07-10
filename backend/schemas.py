@@ -19,6 +19,9 @@ class TagBase(BaseModel):
     class Config:
         from_attributes = True
 
+class TagCreate(BaseModel):
+    name: str
+
 class ActionItemBase(BaseModel):
     id: str
     meeting_id: str

@@ -70,6 +70,16 @@ export async function fetchTags() {
     return response.json();
 }
 
+export async function createTag(name: string) {
+    const response = await fetch(`${API_BASE_URL}/tags`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+    });
+    if (!response.ok) throw new Error("Failed to create tag");
+    return response.json();
+}
+
 export async function createMeeting(payload: any) {
     const response = await fetch(`${API_BASE_URL}/meetings`, {
         method: "POST",

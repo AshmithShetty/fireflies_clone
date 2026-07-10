@@ -119,7 +119,7 @@ export default function MeetingDetailPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full max-w-[1600px] mx-auto">
 
                     <div className="lg:col-span-5 flex flex-col h-full gap-4 min-h-[400px]">
-                        <MediaPlayer mediaUrl={meeting.media_url} />
+                        <MediaPlayer mediaUrl={meeting.media_url} duration={meeting.duration} />
                         <div className="flex-1 overflow-hidden">
                             <SummaryPanel meetingId={meetingId} summary={meeting.summary} actionItems={meeting.action_items} />
                         </div>

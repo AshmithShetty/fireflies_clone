@@ -108,7 +108,7 @@ export function TranscriptPanel({ segments }: TranscriptPanelProps) {
                 </div>
             </div>
 
-            <ScrollArea className="flex-1 p-4">
+            <div className="flex-1 overflow-y-auto min-h-0 p-4">
                 <div className="space-y-6">
                     {filteredSegments.map((segment) => {
                         const isActive = currentMediaTime >= segment.start_time && currentMediaTime < segment.end_time;
@@ -173,7 +173,7 @@ export function TranscriptPanel({ segments }: TranscriptPanelProps) {
                         );
                     })}
                 </div>
-            </ScrollArea>
+            </div>
         </div>
     );
 }

@@ -54,6 +54,19 @@ def get_users(db: Session = Depends(get_db)):
 def get_tags(db: Session = Depends(get_db)):
     return db.query(models.Tag).all()
 
+@app.post("/api/tags", response_model=schemas.TagBase, status_code=status.HTTP_201_CREATED)
+def create_tag(payload: schemas.TagCreate, db: Session = Depends(get_db)):
+    # check if exists
+    existing = db.query(models.Tag).filter(models.Tag.name.ilike(payload.name)).first()
+    if existing:
+        return existing
+        
+    tag = models.Tag(id=str(uuid.uuid4()), name=payload.name)
+    db.add(tag)
+    db.commit()
+    db.refresh(tag)
+    return tag
+
 @app.get("/api/meetings", response_model=List[schemas.MeetingListResponse])
 def get_meetings(db: Session = Depends(get_db)):
     return db.query(models.Meeting).order_by(models.Meeting.date.desc()).all()

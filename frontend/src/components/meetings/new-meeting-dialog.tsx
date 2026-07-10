@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { fetchUsers, fetchTags, createMeeting } from "@/lib/api";
+import { fetchUsers, fetchTags, createMeeting, createTag } from "@/lib/api";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -25,6 +25,7 @@ export function NewMeetingDialog({ open, onOpenChange, onSuccess }: NewMeetingDi
   const [transcript, setTranscript] = useState("");
   const [users, setUsers] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
+  const [newTagInput, setNewTagInput] = useState("");
   
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [selectedTagNames, setSelectedTagNames] = useState<Set<string>>(new Set());
@@ -57,6 +58,21 @@ export function NewMeetingDialog({ open, onOpenChange, onSuccess }: NewMeetingDi
     if (newSet.has(name)) newSet.delete(name);
     else newSet.add(name);
     setSelectedTagNames(newSet);
+  };
+
+  const handleCreateTag = async () => {
+    if (!newTagInput.trim()) return;
+    try {
+      const created = await createTag(newTagInput.trim());
+      setTags(prev => {
+        if (!prev.find(t => t.name === created.name)) return [...prev, created];
+        return prev;
+      });
+      toggleTag(created.name);
+      setNewTagInput("");
+    } catch (err) {
+      toast.error("Failed to create tag");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -122,7 +138,7 @@ export function NewMeetingDialog({ open, onOpenChange, onSuccess }: NewMeetingDi
           </div>
           <div className="space-y-2">
             <Label>Tags</Label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-2">
               {tags.map(t => (
                 <Badge
                   key={t.id}
@@ -133,6 +149,23 @@ export function NewMeetingDialog({ open, onOpenChange, onSuccess }: NewMeetingDi
                   {t.name}
                 </Badge>
               ))}
+            </div>
+            <div className="flex gap-2">
+              <Input 
+                value={newTagInput} 
+                onChange={e => setNewTagInput(e.target.value)} 
+                placeholder="New tag name" 
+                className="h-8 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleCreateTag();
+                  }
+                }}
+              />
+              <Button type="button" variant="secondary" size="sm" onClick={handleCreateTag} className="h-8">
+                Add Tag
+              </Button>
             </div>
           </div>
           <div className="space-y-2">
