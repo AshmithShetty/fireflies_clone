@@ -1,0 +1,29 @@
+// Defines the root HTML document structure and global placeholder configurations.
+
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Fireflies.ai Clone",
+  description: "Meeting Notes & Transcription Platform",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        {/* Placeholder: Real-time bot, Zoom/Google Meet integrations are handled via mocked API data */}
+        <div className="flex h-screen w-full bg-gray-50 text-gray-900">
+          {children}
+        </div>
+      </body>
+    </html>
+  );
+}
