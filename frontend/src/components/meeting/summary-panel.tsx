@@ -123,8 +123,9 @@ export function SummaryPanel({ meetingId, summary, actionItems: initialActionIte
                         )}
                     </TabsContent>
 
-                    <TabsContent value="action_items" className="m-0 flex-1 flex flex-col min-h-0 space-y-4">
-                        <div className="flex-1 space-y-3 overflow-y-auto">
+                    <TabsContent value="action_items" className="m-0 flex-1 min-h-0">
+                        <div className="flex flex-col h-full min-h-0 space-y-4">
+                            <div className="flex-1 space-y-3 overflow-y-auto">
                             {actionItems && actionItems.length > 0 ? (
                                 actionItems.map((item) => (
                                     <div key={item.id} className="group flex items-start space-x-3 p-3 rounded-md border bg-muted/30 relative hover:bg-muted/50 transition-colors">
@@ -181,10 +182,12 @@ export function SummaryPanel({ meetingId, summary, actionItems: initialActionIte
                                 {isAddingTask ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                             </Button>
                         </form>
+                        </div>
                     </TabsContent>
 
-                    <TabsContent value="chat" className="m-0 flex-1 flex flex-col min-h-0">
-                        <div className="flex-1 space-y-4 mb-4 overflow-y-auto">
+                    <TabsContent value="chat" className="m-0 flex-1 min-h-0">
+                        <div className="flex flex-col h-full min-h-0">
+                            <div className="flex-1 space-y-4 mb-4 overflow-y-auto">
                             {chatMessages.length === 0 && (
                                 <div className="text-center text-sm text-muted-foreground mt-4">
                                     Ask a question about this meeting based on the transcript.
@@ -217,6 +220,7 @@ export function SummaryPanel({ meetingId, summary, actionItems: initialActionIte
                                 <Send className="w-4 h-4" />
                             </Button>
                         </form>
+                        </div>
                     </TabsContent>
                 </div>
             </Tabs>
