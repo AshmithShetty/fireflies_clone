@@ -2,6 +2,11 @@
 
 A highly functional, full-stack clone of the Fireflies.ai meeting-assistant web application. This platform allows users to browse a library of meetings, view interactive transcripts with speaker labels and timestamps, read AI-generated summaries, chat dynamically with an advanced LLM (AskFred) about the meeting content across their entire workspace, and experience a pixel-perfect replica of the modern Fireflies workspace UI.
 
+## Live Demo
+- **Frontend (Vercel)**: [https://fireflies-clone-ten.vercel.app/](https://fireflies-clone-ten.vercel.app/)
+- **Backend API (Render)**: [https://fireflies-backend-g2np.onrender.com/](https://fireflies-backend-g2np.onrender.com/)
+- **GitHub Repository**: [https://github.com/AshmithShetty/fireflies_clone](https://github.com/AshmithShetty/fireflies_clone)
+
 ## Project Overview & Core Features
 This project replicates the core post-meeting workflows and design aesthetics of Fireflies.ai.
 - **Meetings Library / Dashboard**: Filterable, sortable list of past meetings matching the Fireflies UI.
@@ -24,6 +29,39 @@ This project replicates the core post-meeting workflows and design aesthetics of
 The application follows a modern decoupled architecture. The frontend (Next.js) handles UI rendering, client-side routing, and state management, communicating via RESTful API calls to the Python backend. The backend (FastAPI) manages business logic, SQLite database interactions via SQLAlchemy, and proxies external requests to the Groq LLM API. 
 
 **AskFred ReAct Engine**: Instead of relying on unstable native tool-calling features from LLM providers, AskFred runs on a highly robust, custom-built ReAct (Reasoning & Acting) loop inside the Python backend. The 70B model operates in strict JSON Mode, outputting its internal monologue and tool selection. The backend seamlessly intercepts these tool requests, executes the Python functions to fetch data from the SQLite database, and loops the results back to the LLM until a final synthesized answer is generated.
+
+## Database Schema
+The backend uses **SQLite** mapped via **SQLAlchemy ORM**. The schema is structured as follows:
+- **`users`**: Stores participant details (`id`, `name`, `email`, `avatar_url`).
+- **`meetings`**: Core meeting metadata (`id`, `title`, `date`, `duration`, `media_url`).
+  - *Relationships*: Many-to-many with `users` (via `meeting_participants`) and `tags` (via `meeting_tags`).
+- **`tags`**: Custom labels for meetings (`id`, `name`).
+- **`transcript_segments`**: Individual timestamped dialogue blocks (`id`, `meeting_id`, `speaker_name`, `start_time`, `end_time`, `text_content`).
+- **`summaries`**: AI-generated overviews and key topics (`id`, `meeting_id`, `overview_text`, `key_topics`).
+- **`action_items`**: Trackable tasks extracted from meetings (`id`, `meeting_id`, `description`, `is_completed`).
+- **`comments`**: User annotations on specific transcript segments (`id`, `segment_id`, `user_id`, `text`).
+
+## API Overview
+The FastAPI backend exposes a clean RESTful interface for all frontend operations:
+
+### Meetings & Transcripts
+- `GET /api/meetings` - Fetch all meetings (supports search, date filtering, and tags).
+- `POST /api/meetings` - Create a new meeting.
+- `GET /api/meetings/{id}/details` - Fetch full payload for a workspace (transcript, summary, action items).
+- `PUT /api/meetings/{id}` - Update meeting metadata.
+- `DELETE /api/meetings/{id}` - Delete a meeting and cascade all related data.
+- `GET /api/meetings/{id}/search?q=` - Search within a specific meeting's transcript.
+
+### Ask AI (AskFred) & Global Search
+- `POST /api/meetings/{id}/chat` - Submit a query to the LLM. The backend runs a ReAct loop to answer workspace/transcript questions.
+- `GET /api/search?q=` - Global FTS5 search across all meeting metadata.
+
+### Action Items & Metadata
+- `POST /api/action-items` - Add a new action item.
+- `PUT /api/action-items/{id}` - Toggle completion status.
+- `GET /api/tags` | `POST /api/tags` - Manage global tags.
+- `GET /api/users` - Fetch workspace participants.
+- `POST /api/comments` - Attach a comment to a specific transcript segment.
 
 ## Local Setup & Installation Instructions
 
