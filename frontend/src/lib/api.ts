@@ -2,8 +2,19 @@
 
 const API_BASE_URL = "http://localhost:8000/api";
 
-export async function fetchMeetings() {
-    const response = await fetch(`${API_BASE_URL}/meetings`);
+export async function fetchMeetings(filters?: { search?: string, dateFilter?: string, tag?: string }) {
+    let url = `${API_BASE_URL}/meetings`;
+    if (filters) {
+        const params = new URLSearchParams();
+        if (filters.search) params.append("search", filters.search);
+        if (filters.dateFilter && filters.dateFilter !== "All Time") params.append("date_filter", filters.dateFilter);
+        if (filters.tag && filters.tag !== "All Tags") params.append("tag", filters.tag);
+        const qs = params.toString();
+        if (qs) {
+            url += `?${qs}`;
+        }
+    }
+    const response = await fetch(url);
     if (!response.ok) {
         throw new Error("Failed to fetch meetings");
     }
@@ -125,5 +136,12 @@ export async function updateActionItem(itemId: string, payload: any) {
         body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error("Failed to update action item");
+    return response.json();
+}
+
+export async function searchMeetingTranscript(meetingId: string, query: string) {
+    if (!query) return [];
+    const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/search?q=${encodeURIComponent(query)}`);
+    if (!response.ok) throw new Error("Failed to search transcript");
     return response.json();
 }

@@ -126,7 +126,7 @@ export default function MeetingDetailPage() {
                     </div>
 
                     <div className="lg:col-span-7 flex flex-col h-full overflow-hidden">
-                        <TranscriptPanel segments={meeting.transcript_segments} />
+                        <TranscriptPanel segments={meeting.transcript_segments} meetingId={meeting.id} />
                     </div>
 
                 </div>

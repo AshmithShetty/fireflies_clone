@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/store/useAppStore";
-import { addComment } from "@/lib/api";
+import { addComment, searchMeetingTranscript } from "@/lib/api";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 
@@ -29,6 +29,7 @@ interface TranscriptSegment {
 
 interface TranscriptPanelProps {
     segments: TranscriptSegment[];
+    meetingId: string;
 }
 
 function formatTime(seconds: number) {
@@ -37,7 +38,7 @@ function formatTime(seconds: number) {
     return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function TranscriptPanel({ segments }: TranscriptPanelProps) {
+export function TranscriptPanel({ segments, meetingId }: TranscriptPanelProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const { currentMediaTime, requestSeek } = useAppStore();
     const activeSegmentRef = useRef<HTMLDivElement>(null);
@@ -84,13 +85,23 @@ export function TranscriptPanel({ segments }: TranscriptPanelProps) {
         }
     };
 
-    const filteredSegments = useMemo(() => {
-        if (!searchQuery) return segments;
-        return segments.filter(seg =>
-            seg.text_content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            seg.speaker_name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [segments, searchQuery]);
+    const [filteredSegments, setFilteredSegments] = useState<TranscriptSegment[]>(segments);
+
+    useEffect(() => {
+        const handler = setTimeout(async () => {
+            if (!searchQuery) {
+                setFilteredSegments(segments);
+                return;
+            }
+            try {
+                const data = await searchMeetingTranscript(meetingId, searchQuery);
+                setFilteredSegments(data);
+            } catch (err) {
+                console.error("Failed to search transcript", err);
+            }
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [searchQuery, meetingId, segments]);
 
     return (
         <div className="flex flex-col h-full bg-background rounded-xl border">

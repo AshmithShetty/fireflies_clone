@@ -7,10 +7,12 @@ from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from dotenv import load_dotenv
 from groq import Groq
 from fpdf import FPDF
+from datetime import datetime, timedelta, timezone
+import json
 
 from database import engine, Base, get_db, init_fts
 import models
@@ -68,8 +70,37 @@ def create_tag(payload: schemas.TagCreate, db: Session = Depends(get_db)):
     return tag
 
 @app.get("/api/meetings", response_model=List[schemas.MeetingListResponse])
-def get_meetings(db: Session = Depends(get_db)):
-    return db.query(models.Meeting).order_by(models.Meeting.date.desc()).all()
+def get_meetings(
+    search: Optional[str] = Query(None),
+    date_filter: Optional[str] = Query(None),
+    tag: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Meeting)
+    
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            models.Meeting.title.ilike(search_pattern) | 
+            models.Meeting.participants.any(models.User.name.ilike(search_pattern))
+        )
+        
+    if tag and tag != "All Tags":
+        query = query.filter(models.Meeting.tags.any(models.Tag.name == tag))
+        
+    if date_filter and date_filter != "All Time":
+        now = datetime.now(timezone.utc)
+        if date_filter == "Today":
+            today_str = now.date().isoformat()
+            query = query.filter(models.Meeting.date >= today_str)
+        elif date_filter == "Past 7 Days":
+            past_week_str = (now - timedelta(days=7)).isoformat()
+            query = query.filter(models.Meeting.date >= past_week_str)
+        elif date_filter == "Past 30 Days":
+            past_month_str = (now - timedelta(days=30)).isoformat()
+            query = query.filter(models.Meeting.date >= past_month_str)
+
+    return query.order_by(models.Meeting.date.desc()).all()
 
 @app.get("/api/meetings/{meeting_id}/details", response_model=schemas.MeetingDetailResponse)
 def get_meeting_details(meeting_id: str, db: Session = Depends(get_db)):
@@ -103,6 +134,85 @@ def create_meeting(payload: schemas.MeetingCreate, db: Session = Depends(get_db)
 
     db.add(new_meeting)
     db.commit()
+
+    if payload.transcript:
+        lines = [line.strip() for line in payload.transcript.split("\n") if line.strip()]
+        current_time = 0.0
+        db_segments = []
+        for line in lines:
+            seg = models.TranscriptSegment(
+                id=str(uuid.uuid4()),
+                meeting_id=meeting_id,
+                speaker_name="Speaker",
+                start_time=current_time,
+                end_time=current_time + 5.0,
+                text_content=line
+            )
+            db_segments.append(seg)
+            current_time += 5.0
+        db.add_all(db_segments)
+        db.commit()
+        
+        prompt = f"""You are an AI meeting assistant. Based on this transcript, generate a rich "Super Summary".
+Output ONLY JSON in this format:
+{{
+  "overview": "A short 1-2 sentence overview of the meeting.",
+  "sentiment": "Positive, Neutral, or Negative",
+  "chapters": [
+    {{"timestamp": "00:00", "title": "Introduction", "summary": "Brief summary of chapter"}}
+  ],
+  "action_items": [
+    {{"task": "Action item description", "assignee": "Person's name or Unassigned"}}
+  ]
+}}
+
+Transcript:
+{payload.transcript[:8000]}"""
+        
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model=GROQ_MODEL,
+                response_format={"type": "json_object"}
+            )
+            result = json.loads(chat_completion.choices[0].message.content)
+            
+            sentiment = result.get("sentiment", "Neutral")
+            chapters_md = f"**Overall Sentiment:** {sentiment}\\n\\n### Chapters\\n"
+            for ch in result.get("chapters", []):
+                chapters_md += f"- **{ch.get('timestamp', '00:00')} - {ch.get('title', 'Topic')}**: {ch.get('summary', '')}\\n"
+                
+            summary = models.Summary(
+                id=str(uuid.uuid4()),
+                meeting_id=meeting_id,
+                overview_text=result.get("overview", "Generated overview"),
+                key_topics=chapters_md
+            )
+            db.add(summary)
+            
+            items = result.get("action_items", [])
+            for item in items:
+                task = item.get("task", "")
+                assignee = item.get("assignee", "Unassigned")
+                if task:
+                    a_item = models.ActionItem(
+                        id=str(uuid.uuid4()),
+                        meeting_id=meeting_id,
+                        description=f"[{assignee}] {task}",
+                        is_completed=False
+                    )
+                    db.add(a_item)
+            db.commit()
+        except Exception as e:
+            summary = models.Summary(
+                id=str(uuid.uuid4()),
+                meeting_id=meeting_id,
+                overview_text="Meeting transcript uploaded successfully. AI processing failed.",
+                key_topics="- Transcript Review"
+            )
+            db.add(summary)
+            db.commit()
+
     db.refresh(new_meeting)
     return new_meeting
 
@@ -186,10 +296,14 @@ def create_comment(payload: schemas.CommentCreate, db: Session = Depends(get_db)
 
 @app.get("/api/search", response_model=List[schemas.GlobalSearchMatch])
 def global_search(q: str = Query(..., min_length=1), db: Session = Depends(get_db)):
-    fts_results = db.execute(
-        f"SELECT segment_id, meeting_id, speaker_name, text_content FROM transcript_fts WHERE transcript_fts MATCH :query",
-        {"query": q}
-    ).fetchall()
+    safe_q = q.replace('"', '""').replace("'", "''")
+    try:
+        fts_results = db.execute(
+            "SELECT segment_id, meeting_id, speaker_name, text_content FROM transcript_fts WHERE transcript_fts MATCH :query",
+            {"query": f'"{safe_q}"'}
+        ).fetchall()
+    except Exception:
+        fts_results = []
     
     matches = []
     for row in fts_results:
@@ -220,42 +334,174 @@ def global_search(q: str = Query(..., min_length=1), db: Session = Depends(get_d
             
     return matches
 
+@app.get("/api/meetings/{meeting_id}/search", response_model=List[schemas.TranscriptSegmentBase])
+def search_meeting_transcript(meeting_id: str, q: str = Query(..., min_length=1), db: Session = Depends(get_db)):
+    safe_q = q.replace('"', '""').replace("'", "''")
+    try:
+        fts_results = db.execute(
+            "SELECT segment_id FROM transcript_fts WHERE meeting_id = :mid AND transcript_fts MATCH :query",
+            {"mid": meeting_id, "query": f'"{safe_q}"'}
+        ).fetchall()
+    except Exception:
+        fts_results = []
+        
+    segment_ids = [row.segment_id for row in fts_results]
+    if not segment_ids:
+        return []
+        
+    segments = db.query(models.TranscriptSegment).filter(models.TranscriptSegment.id.in_(segment_ids)).order_by(models.TranscriptSegment.start_time).all()
+    return segments
+
 @app.post("/api/meetings/{meeting_id}/chat", response_model=schemas.ChatResponse)
 def chat_with_meeting(meeting_id: str, payload: schemas.ChatRequest, db: Session = Depends(get_db)):
     meeting = db.query(models.Meeting).filter(models.Meeting.id == meeting_id).first()
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
         
-    transcript_text = " ".join([seg.text_content for seg in meeting.transcript_segments])
+    transcript_text = "\\n".join([f"{seg.speaker_name}: {seg.text_content}" for seg in meeting.transcript_segments])
+    summary_text = meeting.summary.overview_text if meeting.summary else "No summary available."
     
-    prompt = f"You are an AI meeting assistant. Based on the following transcript, answer the user's question concisely.\n\nTranscript: {transcript_text}\n\nQuestion: {payload.question}"
+    prompt = f"You are an AI meeting assistant discussing the meeting '{meeting.title}' (Date: {meeting.date}).\\nMeeting Summary: {summary_text}\\n\\nFull Transcript:\\n{transcript_text}\\n\\nQuestion: {payload.question}\\nAnswer concisely:"
     
-    chat_completion = client.chat.completions.create(
-        messages=[{"role": "user", "content": prompt}],
-        model=GROQ_MODEL,
-    )
-    
-    return schemas.ChatResponse(answer=chat_completion.choices[0].message.content)
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model=GROQ_MODEL,
+        )
+        return schemas.ChatResponse(answer=chat_completion.choices[0].message.content)
+    except Exception:
+        return schemas.ChatResponse(answer="Sorry, I encountered an error generating the response. The transcript might be too long for my context window.")
 
 @app.post("/api/chat", response_model=schemas.ChatResponse)
 def global_chat(payload: schemas.ChatRequest, db: Session = Depends(get_db)):
-    # Mocking global chat context by fetching all recent transcripts
-    meetings = db.query(models.Meeting).order_by(models.Meeting.date.desc()).limit(3).all()
-    context = ""
-    for m in meetings:
-        context += f"Meeting '{m.title}' ({m.date}): " + " ".join([seg.text_content for seg in m.transcript_segments]) + "\n"
-        
-    prompt = f"You are AskFred, an AI assistant for a meeting transcription platform. Based on the recent meetings context, answer the user's question concisely.\n\nContext: {context}\n\nQuestion: {payload.question}"
-    
-    chat_completion = client.chat.completions.create(
-        messages=[{"role": "user", "content": prompt}],
-        model=GROQ_MODEL,
-    )
-    
-    return schemas.ChatResponse(answer=chat_completion.choices[0].message.content)
+    system_prompt = """You are AskFred, an advanced AI assistant for a meeting platform.
+You have access to the following tools:
+1. `list_recent_meetings`: arguments {"limit": int} - Get a chronological list of recent meetings.
+2. `search_meeting_metadata`: arguments {"query": string} - Search meeting titles, summaries, and key topics.
+3. `search_transcripts`: arguments {"query": string} - Search raw transcripts for exact quotes and granular details.
+
+You MUST operate in a thought-action loop. For EVERY turn, you must output a valid JSON object matching EXACTLY this schema:
+{
+    "thought": "Your internal monologue explaining your reasoning",
+    "tool_name": "The name of the tool to use, or null if you have enough information to answer the user",
+    "tool_args": {"arg_name": "arg_value"},
+    "final_answer": "The final markdown formatted answer to the user, or null if you are using a tool"
+}
+
+IMPORTANT:
+- If you need to use a tool, `tool_name` must be the string name of the tool, `tool_args` must be the arguments object, and `final_answer` MUST be null.
+- If you have the answer for the user, `tool_name` MUST be null, and `final_answer` MUST contain the text to show the user.
+- NEVER return anything outside of this JSON object.
+"""
+
+    messages = [{"role": "system", "content": system_prompt}]
+
+    if payload.messages:
+        for m in payload.messages:
+            messages.append({"role": m.role, "content": m.content})
+    elif payload.question:
+        messages.append({"role": "user", "content": payload.question})
+
+    import json
+    import groq
+
+    max_loops = 5
+    for loop_count in range(max_loops):
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=messages,
+                model=GROQ_MODEL,
+                response_format={"type": "json_object"}
+            )
+            response_text = chat_completion.choices[0].message.content
+            
+            try:
+                action = json.loads(response_text)
+            except:
+                return schemas.ChatResponse(answer="Sorry, I ran into a JSON parsing error internally.")
+
+            if action.get("final_answer"):
+                return schemas.ChatResponse(answer=action["final_answer"])
+                
+            tool_name = action.get("tool_name")
+            tool_args = action.get("tool_args", {})
+            
+            if not tool_name:
+                # Edge case where model didn't provide a tool or an answer
+                messages.append({"role": "assistant", "content": response_text})
+                messages.append({"role": "user", "content": "You didn't provide a tool or a final_answer. Please try again."})
+                continue
+            
+            tool_result = ""
+            if tool_name == "list_recent_meetings":
+                limit = tool_args.get("limit", 5)
+                meetings = db.query(models.Meeting).order_by(models.Meeting.date.desc()).limit(limit).all()
+                res = [f"- {m.title} on {m.date}" for m in meetings]
+                tool_result = "\n".join(res) if res else "No meetings found."
+            elif tool_name == "search_meeting_metadata":
+                q = tool_args.get("query", "").lower()
+                meetings = db.query(models.Meeting).all()
+                res = []
+                for m in meetings:
+                    summary = m.summary.overview_text if m.summary else ""
+                    topics = m.summary.key_topics if m.summary else ""
+                    if q in m.title.lower() or q in summary.lower() or q in topics.lower():
+                        res.append(f"Meeting: {m.title} ({m.date})\nSummary: {summary}\nTopics: {topics}\n")
+                tool_result = "\n".join(res[:5]) if res else f"No meetings found matching '{q}'."
+            elif tool_name == "search_transcripts":
+                q = tool_args.get("query", "")
+                safe_q = q.replace('"', '""')
+                try:
+                    fts_results = db.execute(
+                        "SELECT segment_id, meeting_id FROM transcript_fts WHERE transcript_fts MATCH :query LIMIT 10",
+                        {"query": f'"{safe_q}"'}
+                    ).fetchall()
+                except Exception:
+                    fts_results = []
+                
+                if not fts_results:
+                    words = q.split()
+                    or_query = " OR ".join([f'"{w}"' for w in words if len(w) > 3])
+                    if or_query:
+                        try:
+                            fts_results = db.execute(
+                                "SELECT segment_id, meeting_id FROM transcript_fts WHERE transcript_fts MATCH :query LIMIT 10",
+                                {"query": or_query}
+                            ).fetchall()
+                        except Exception:
+                            fts_results = []
+                            
+                res = []
+                for row in fts_results:
+                    meeting = db.query(models.Meeting).filter(models.Meeting.id == row.meeting_id).first()
+                    m_title = meeting.title if meeting else "Unknown"
+                    matched_seg = db.query(models.TranscriptSegment).filter(models.TranscriptSegment.id == row.segment_id).first()
+                    if not matched_seg: continue
+                    
+                    surrounding = db.query(models.TranscriptSegment).filter(
+                        models.TranscriptSegment.meeting_id == row.meeting_id,
+                        models.TranscriptSegment.start_time >= matched_seg.start_time - 30,
+                        models.TranscriptSegment.start_time <= matched_seg.start_time + 30
+                    ).order_by(models.TranscriptSegment.start_time.asc()).all()
+                    
+                    chunk_text = "\n".join([f"{s.speaker_name}: {s.text_content}" for s in surrounding])
+                    res.append(f"[{m_title}] CONTEXT CHUNK:\n{chunk_text}")
+                    
+                tool_result = "\n---\n".join(res) if res else f"No transcripts found for '{q}'."
+            else:
+                tool_result = f"Unknown tool: {tool_name}"
+
+            # Append the assistant's action, and the system's response
+            messages.append({"role": "assistant", "content": response_text})
+            messages.append({"role": "user", "content": f"Tool '{tool_name}' returned:\n{tool_result}\n\nPlease proceed to output the next JSON action."})
+
+        except Exception as e:
+            return schemas.ChatResponse(answer=f"Sorry, an error occurred during processing: {str(e)}")
+
+    return schemas.ChatResponse(answer="Sorry, I ran out of time while thinking about your request. Please try again.")
 
 @app.get("/api/meetings/{meeting_id}/export")
-def export_meeting(meeting_id: str, format: str = Query("txt", regex="^(txt|md|pdf)$"), db: Session = Depends(get_db)):
+def export_meeting(meeting_id: str, format: str = Query("txt", pattern="^(txt|md|pdf)$"), db: Session = Depends(get_db)):
     meeting = db.query(models.Meeting).filter(models.Meeting.id == meeting_id).first()
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")

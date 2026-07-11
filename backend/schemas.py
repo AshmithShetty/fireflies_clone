@@ -78,6 +78,7 @@ class MeetingCreate(BaseModel):
     duration: float
     participant_ids: List[str]
     tag_names: List[str]
+    transcript: Optional[str] = None
 
 class MeetingMetadataUpdate(BaseModel):
     title: Optional[str] = None
@@ -118,8 +119,13 @@ class GlobalSearchMatch(BaseModel):
     speaker_name: Optional[str] = None
     text_content: Optional[str] = None
 
+class Message(BaseModel):
+    role: str
+    content: str
+
 class ChatRequest(BaseModel):
-    question: str
+    question: Optional[str] = None
+    messages: Optional[List[Message]] = None
 
 class ChatResponse(BaseModel):
     answer: str

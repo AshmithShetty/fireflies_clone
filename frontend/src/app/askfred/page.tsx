@@ -33,7 +33,7 @@ export default function AskFredPage() {
       const res = await fetch("http://localhost:8000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: messageText })
+        body: JSON.stringify({ messages: [...messages, { role: "user", content: messageText }] })
       });
       const data = await res.json();
       setMessages(prev => [...prev, { role: "assistant", content: data.answer }]);

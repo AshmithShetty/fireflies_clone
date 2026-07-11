@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchMeetings } from "@/lib/api";
+import { fetchMeetings, fetchTags } from "@/lib/api";
 import { MeetingCard } from "@/components/meetings/meeting-card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Upload, Plus, Settings } from "lucide-react";
+import { Calendar, Upload, Plus, Settings, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppStore } from "@/store/useAppStore";
 import { useRouter } from "next/navigation";
 import { NewMeetingDialog } from "@/components/meetings/new-meeting-dialog";
@@ -14,13 +16,28 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [isNewMeetingOpen, setIsNewMeetingOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("Recent");
+  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("All Time");
+  const [selectedTag, setSelectedTag] = useState("All Tags");
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
+
   const { currentUser } = useAppStore();
   const router = useRouter();
 
   useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
     async function loadData() {
+      setLoading(true);
       try {
-        const data = await fetchMeetings();
+        const data = await fetchMeetings({ search: debouncedSearch, dateFilter, tag: selectedTag });
         setMeetings(data);
       } catch (error) {
         console.error("Failed to load meetings", error);
@@ -29,12 +46,24 @@ export default function Home() {
       }
     }
     loadData();
+  }, [debouncedSearch, dateFilter, selectedTag]);
+
+  useEffect(() => {
+    async function loadTags() {
+      try {
+        const data = await fetchTags();
+        setAvailableTags(data);
+      } catch (error) {
+        console.error("Failed to load tags", error);
+      }
+    }
+    loadTags();
   }, []);
 
   const reloadData = async () => {
     setLoading(true);
     try {
-      const data = await fetchMeetings();
+      const data = await fetchMeetings({ search: debouncedSearch, dateFilter, tag: selectedTag });
       setMeetings(data);
     } catch (error) {
       console.error("Failed to load meetings", error);
@@ -107,16 +136,53 @@ export default function Home() {
 
       {/* Meetings Section */}
       <div className="space-y-6 pt-4">
-         <div className="flex items-center justify-between border-b pb-0">
+         <div className="flex flex-col md:flex-row md:items-center justify-between border-b pb-0 gap-4">
             <div className="flex items-center space-x-6 h-10 px-1">
                <button onClick={() => setActiveTab("Recent")} className={`h-full border-b-2 text-sm ${activeTab === 'Recent' ? 'border-foreground text-foreground font-medium' : 'border-transparent text-muted-foreground hover:text-foreground font-medium'}`}>Recent</button>
                <button onClick={() => setActiveTab("Upcoming")} className={`h-full border-b-2 text-sm ${activeTab === 'Upcoming' ? 'border-foreground text-foreground font-medium' : 'border-transparent text-muted-foreground hover:text-foreground font-medium'}`}>Upcoming</button>
                <button onClick={() => setActiveTab("AI Feed")} className={`h-full border-b-2 text-sm ${activeTab === 'AI Feed' ? 'border-foreground text-foreground font-medium' : 'border-transparent text-muted-foreground hover:text-foreground font-medium'}`}>AI Feed</button>
             </div>
-            <Button onClick={() => router.push('/settings')} variant="ghost" size="sm" className="h-8 mb-1 text-muted-foreground hover:text-foreground font-normal">
-               <Settings className="w-4 h-4 mr-1.5" />
-               Settings
-            </Button>
+            
+            <div className="flex flex-wrap items-center gap-3 pb-2 md:pb-1">
+               <div className="relative w-full md:w-56 lg:w-64">
+                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                   <Input
+                       placeholder="Search meetings..."
+                       className="pl-8 h-9"
+                       value={searchQuery}
+                       onChange={(e) => setSearchQuery(e.target.value)}
+                   />
+               </div>
+               
+               <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger className="w-[130px] h-9">
+                     <SelectValue placeholder="Date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="All Time">All Time</SelectItem>
+                     <SelectItem value="Today">Today</SelectItem>
+                     <SelectItem value="Past 7 Days">Past 7 Days</SelectItem>
+                     <SelectItem value="Past 30 Days">Past 30 Days</SelectItem>
+                  </SelectContent>
+               </Select>
+               
+               <Select value={selectedTag} onValueChange={setSelectedTag}>
+                  <SelectTrigger className="w-[130px] h-9">
+                     <SelectValue placeholder="Tags" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="All Tags">All Tags</SelectItem>
+                     {availableTags.map(tag => (
+                         <SelectItem key={tag.id} value={tag.name}>{tag.name}</SelectItem>
+                     ))}
+                  </SelectContent>
+               </Select>
+
+               <Button onClick={() => router.push('/settings')} variant="ghost" size="sm" className="h-9 text-muted-foreground hover:text-foreground font-normal ml-2 hidden lg:flex">
+                  <Settings className="w-4 h-4 mr-1.5" />
+                  Settings
+               </Button>
+            </div>
          </div>
 
          <div className="pt-2">

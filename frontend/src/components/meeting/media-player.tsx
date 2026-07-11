@@ -14,60 +14,76 @@ export function MediaPlayer({ mediaUrl, duration = 900 }: MediaPlayerProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const { setCurrentMediaTime, seekRequest, clearSeekRequest } = useAppStore();
     
-    // Make the video duration slightly longer than the transcript
     const displayDuration = duration + 30;
     
     const [isPlaying, setIsPlaying] = useState(false);
-    const [virtualTime, setVirtualTime] = useState(0);
-    
-    // Handle transcript seek clicks
+    const [globalTime, setGlobalTime] = useState(0);
+    const lastVideoTimeRef = useRef(0);
+    const isScrubbingRef = useRef(false);
+
+    // Sync global time cleanly to store
+    useEffect(() => {
+        setCurrentMediaTime(globalTime);
+    }, [globalTime, setCurrentMediaTime]);
+
     useEffect(() => {
         if (seekRequest !== null) {
-            setVirtualTime(seekRequest);
-            setCurrentMediaTime(seekRequest);
-            setIsPlaying(true);
+            setGlobalTime(seekRequest);
+            
             if (videoRef.current) {
+                const vidDuration = videoRef.current.duration || 1;
+                const newVidTime = seekRequest % vidDuration;
+                videoRef.current.currentTime = newVidTime;
+                lastVideoTimeRef.current = newVidTime;
+                
+                setIsPlaying(true);
                 videoRef.current.play().catch(() => {});
             }
             clearSeekRequest();
         }
-    }, [seekRequest, clearSeekRequest, setCurrentMediaTime]);
+    }, [seekRequest, clearSeekRequest]);
 
-    // Handle virtual timer ticking
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isPlaying) {
-            interval = setInterval(() => {
-                setVirtualTime(prev => {
-                    const next = prev + 1;
-                    if (next >= displayDuration) {
-                        setIsPlaying(false);
-                        if (videoRef.current) videoRef.current.pause();
-                        return displayDuration;
-                    }
-                    return next;
-                });
-            }, 1000);
+    const handleTimeUpdate = () => {
+        if (!videoRef.current || isScrubbingRef.current || !isPlaying) return;
+        
+        const currentVideoTime = videoRef.current.currentTime;
+        let delta = currentVideoTime - lastVideoTimeRef.current;
+        
+        if (delta < -1) {
+            delta = currentVideoTime; 
         }
-        return () => clearInterval(interval);
-    }, [isPlaying, displayDuration]);
-
-    // Sync virtual time to global store
-    useEffect(() => {
-        setCurrentMediaTime(virtualTime);
-    }, [virtualTime, setCurrentMediaTime]);
+        
+        if (delta > 0) {
+            setGlobalTime(prev => {
+                const next = prev + delta;
+                if (next >= displayDuration) {
+                    setIsPlaying(false);
+                    videoRef.current?.pause();
+                    return displayDuration;
+                }
+                return next;
+            });
+        }
+        lastVideoTimeRef.current = currentVideoTime;
+    };
 
     const togglePlay = () => {
         if (isPlaying) {
             setIsPlaying(false);
             if (videoRef.current) videoRef.current.pause();
         } else {
-            // if finished, restart
-            if (virtualTime >= displayDuration) {
-                setVirtualTime(0);
+            if (globalTime >= displayDuration) {
+                setGlobalTime(0);
+                if (videoRef.current) {
+                    videoRef.current.currentTime = 0;
+                    lastVideoTimeRef.current = 0;
+                }
             }
             setIsPlaying(true);
-            if (videoRef.current) videoRef.current.play().catch(() => {});
+            if (videoRef.current) {
+                lastVideoTimeRef.current = videoRef.current.currentTime;
+                videoRef.current.play().catch(() => {});
+            }
         }
     };
 
@@ -77,23 +93,41 @@ export function MediaPlayer({ mediaUrl, duration = 900 }: MediaPlayerProps) {
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleScrubChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        isScrubbingRef.current = true;
         const newTime = Number(e.target.value);
-        setVirtualTime(newTime);
-        setCurrentMediaTime(newTime);
+        setGlobalTime(newTime);
+        
+        if (videoRef.current) {
+            const vidDuration = videoRef.current.duration || 1;
+            const newVidTime = newTime % vidDuration;
+            videoRef.current.currentTime = newVidTime;
+            lastVideoTimeRef.current = newVidTime;
+        }
     };
+    
+    const handleScrubEnd = () => {
+        isScrubbingRef.current = false;
+        if (videoRef.current && isPlaying) {
+            lastVideoTimeRef.current = videoRef.current.currentTime;
+            videoRef.current.play().catch(() => {});
+        }
+    };
+    
+    const defaultVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
 
     return (
         <Card className="p-4 bg-background flex flex-col gap-3">
             <video
                 ref={videoRef}
-                src={mediaUrl || "/video.mp4"}
+                src={mediaUrl || defaultVideoUrl}
                 loop
-                className="w-full h-auto aspect-video rounded-md bg-black object-cover"
+                playsInline
+                className="w-full h-auto aspect-video rounded-md bg-black object-cover cursor-pointer"
                 onClick={togglePlay}
+                onTimeUpdate={handleTimeUpdate}
             />
             
-            {/* Custom Controls */}
             <div className="flex items-center gap-4">
                 <button 
                     onClick={togglePlay} 
@@ -103,15 +137,17 @@ export function MediaPlayer({ mediaUrl, duration = 900 }: MediaPlayerProps) {
                 </button>
                 
                 <div className="text-sm font-medium text-muted-foreground shrink-0 w-12 text-center">
-                    {formatTime(virtualTime)}
+                    {formatTime(globalTime)}
                 </div>
                 
                 <input 
                     type="range" 
                     min={0} 
                     max={displayDuration} 
-                    value={virtualTime} 
-                    onChange={handleScrub}
+                    value={globalTime} 
+                    onChange={handleScrubChange}
+                    onMouseUp={handleScrubEnd}
+                    onTouchEnd={handleScrubEnd}
                     className="flex-1 cursor-pointer accent-primary"
                 />
                 
