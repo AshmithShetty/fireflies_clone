@@ -117,13 +117,13 @@ export function MediaPlayer({ mediaUrl, duration = 900 }: MediaPlayerProps) {
     const defaultVideoUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
 
     return (
-        <Card className="p-4 bg-background flex flex-col gap-3">
+        <Card className="p-4 bg-background flex flex-col gap-3 shrink-0">
             <video
                 ref={videoRef}
                 src={mediaUrl || defaultVideoUrl}
                 loop
                 playsInline
-                className="w-full h-auto aspect-video rounded-md bg-black object-cover cursor-pointer"
+                className="w-full h-auto max-h-[40vh] aspect-video rounded-md bg-black object-cover cursor-pointer"
                 onClick={togglePlay}
                 onTimeUpdate={handleTimeUpdate}
             />

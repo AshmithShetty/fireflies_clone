@@ -74,7 +74,7 @@ export default function MeetingDetailPage() {
     const formattedDate = format(new Date(meeting.date), "MMM d, yyyy");
 
     return (
-        <div className="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
             <div className="px-6 py-4 border-b bg-background flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
                 <div className="flex items-start gap-4">
                     <Button variant="ghost" size="icon" className="mt-0.5" onClick={() => router.push('/')}>
@@ -119,7 +119,7 @@ export default function MeetingDetailPage() {
             <div className="flex-1 overflow-hidden p-4 md:p-6 bg-muted/10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full max-w-[1600px] mx-auto">
 
-                    <div className="lg:col-span-5 flex flex-col h-full gap-4 min-h-[400px]">
+                    <div className="lg:col-span-5 flex flex-col h-full gap-4 overflow-hidden min-h-0">
                         <MediaPlayer mediaUrl={meeting.media_url} duration={meeting.duration} />
                         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
                             <SummaryPanel meetingId={meetingId} summary={meeting.summary} actionItems={meeting.action_items} />

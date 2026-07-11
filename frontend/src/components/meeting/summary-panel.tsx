@@ -89,8 +89,8 @@ export function SummaryPanel({ meetingId, summary, actionItems: initialActionIte
     };
 
     return (
-        <div className="flex flex-col flex-1 min-h-0 bg-background rounded-xl border">
-            <Tabs defaultValue="summary" className="flex-1 flex flex-col min-h-0">
+        <div className="flex flex-col flex-1 h-full min-h-0 overflow-hidden bg-background rounded-xl border">
+            <Tabs defaultValue="summary" className="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
                 <div className="px-4 pt-4 border-b shrink-0">
                     <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 h-auto">
                         <TabsTrigger value="summary" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 pb-2 pt-2 font-semibold">
@@ -105,7 +105,7 @@ export function SummaryPanel({ meetingId, summary, actionItems: initialActionIte
                     </TabsList>
                 </div>
 
-                <div className="flex-1 flex flex-col min-h-0 p-4 relative">
+                <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden p-4 relative">
                     <TabsContent value="summary" className="m-0 space-y-4 h-full overflow-y-auto pr-2">
                         {summary ? (
                             <>
