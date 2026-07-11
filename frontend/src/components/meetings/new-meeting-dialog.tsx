@@ -102,7 +102,7 @@ export function NewMeetingDialog({ open, onOpenChange, onSuccess }: NewMeetingDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Meeting</DialogTitle>
         </DialogHeader>
