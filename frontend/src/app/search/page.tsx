@@ -30,7 +30,8 @@ export default function SearchPage() {
         const fetchResults = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`http://localhost:8000/api/search?q=${encodeURIComponent(query)}`);
+                const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+                const res = await fetch(`${baseUrl}/search?q=${encodeURIComponent(query)}`);
                 if (res.ok) {
                     const data = await res.json();
                     setResults(data);

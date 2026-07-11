@@ -1,6 +1,6 @@
 // Handles HTTP requests to the FastAPI backend.
 
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 export async function fetchMeetings(filters?: { search?: string, dateFilter?: string, tag?: string }) {
     let url = `${API_BASE_URL}/meetings`;
