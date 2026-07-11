@@ -105,7 +105,7 @@ export function SummaryPanel({ meetingId, summary, actionItems: initialActionIte
                     </TabsList>
                 </div>
 
-                <div className="flex-1 overflow-y-auto min-h-0 p-4">
+                <div className="flex-1 flex flex-col overflow-y-auto min-h-0 p-4">
                     <TabsContent value="summary" className="m-0 space-y-4">
                         {summary ? (
                             <>
@@ -123,7 +123,7 @@ export function SummaryPanel({ meetingId, summary, actionItems: initialActionIte
                         )}
                     </TabsContent>
 
-                    <TabsContent value="action_items" className="m-0 flex flex-col h-full space-y-4">
+                    <TabsContent value="action_items" className="m-0 flex-1 flex flex-col min-h-0 space-y-4">
                         <div className="flex-1 space-y-3 overflow-y-auto">
                             {actionItems && actionItems.length > 0 ? (
                                 actionItems.map((item) => (
@@ -183,7 +183,7 @@ export function SummaryPanel({ meetingId, summary, actionItems: initialActionIte
                         </form>
                     </TabsContent>
 
-                    <TabsContent value="chat" className="m-0 flex flex-col h-full">
+                    <TabsContent value="chat" className="m-0 flex-1 flex flex-col min-h-0">
                         <div className="flex-1 space-y-4 mb-4 overflow-y-auto">
                             {chatMessages.length === 0 && (
                                 <div className="text-center text-sm text-muted-foreground mt-4">
