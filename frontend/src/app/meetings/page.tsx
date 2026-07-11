@@ -12,7 +12,9 @@ import { NewMeetingDialog } from "@/components/meetings/new-meeting-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { format, subDays, isAfter } from "date-fns";
 
-export default function MeetingsLibrary() {
+import { Suspense } from "react";
+
+function MeetingsLibraryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [meetings, setMeetings] = useState<any[]>([]);
@@ -253,5 +255,13 @@ export default function MeetingsLibrary() {
         onSuccess={loadData}
       />
     </div>
+  );
+}
+
+export default function MeetingsLibrary() {
+  return (
+    <Suspense fallback={<div className="p-8 flex justify-center text-muted-foreground">Loading meetings...</div>}>
+      <MeetingsLibraryContent />
+    </Suspense>
   );
 }

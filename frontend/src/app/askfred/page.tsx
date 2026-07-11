@@ -7,7 +7,9 @@ import { useAppStore } from "@/store/useAppStore";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function AskFredPage() {
+import { Suspense } from "react";
+
+function AskFredContent() {
   const { currentUser } = useAppStore();
   const searchParams = useSearchParams();
   const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
@@ -166,5 +168,13 @@ export default function AskFredPage() {
          </div>
       </div>
     </div>
+  );
+}
+
+export default function AskFredPage() {
+  return (
+    <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+      <AskFredContent />
+    </Suspense>
   );
 }

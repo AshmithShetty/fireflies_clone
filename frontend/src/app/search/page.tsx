@@ -13,7 +13,9 @@ interface SearchMatch {
     text_content: string | null;
 }
 
-export default function SearchPage() {
+import { Suspense } from "react";
+
+function SearchContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const query = searchParams.get('q') || "";
@@ -96,5 +98,13 @@ export default function SearchPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function SearchPage() {
+    return (
+        <Suspense fallback={<div className="p-8 flex justify-center text-muted-foreground">Searching...</div>}>
+            <SearchContent />
+        </Suspense>
     );
 }
