@@ -50,7 +50,8 @@ export default function MeetingDetailPage() {
     }, [meetingId, router]);
 
     const handleExport = (format: string) => {
-        window.open(`http://localhost:8000/api/meetings/${meetingId}/export?format=${format}`, "_blank");
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+        window.open(`${baseUrl}/meetings/${meetingId}/export?format=${format}`, "_blank");
     };
 
     const handleDelete = async () => {
@@ -73,7 +74,7 @@ export default function MeetingDetailPage() {
     const formattedDate = format(new Date(meeting.date), "MMM d, yyyy");
 
     return (
-        <div className="flex flex-col h-full h-[calc(100vh-3.5rem)] overflow-hidden">
+        <div className="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
             <div className="px-6 py-4 border-b bg-background flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
                 <div className="flex items-start gap-4">
                     <Button variant="ghost" size="icon" className="mt-0.5" onClick={() => router.push('/')}>
